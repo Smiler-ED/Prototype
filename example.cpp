@@ -1,136 +1,133 @@
+/*
+ * Example of `prototype' design pattern.
+ * Copyright (C) 2011 Radek Pazdera
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <iostream>
+#include <string>
 
-enum imageType
+/* Prototype base class. */
+class Prototype
 {
-  LSAT, SPOT
+    protected:
+        std::string type;
+        int value;
+
+    public:
+        virtual Prototype* clone() = 0;
+
+        std::string getType()
+        {
+            return type;
+        }
+
+        int getValue()
+        {
+            return value;
+        }
 };
 
-class Image
+class ConcretePrototype1 : public Prototype
 {
-  public:
-    virtual void draw() = 0;
-    static Image *findAndClone(imageType);
-  protected:
-    virtual imageType returnType() = 0;
-    virtual Image *clone() = 0;
-    // As each subclass of Image is declared, it registers its prototype
-    static void addPrototype(Image *image)
-    {
-        _prototypes[_nextSlot++] = image;
-    }
-  private:
-    // addPrototype() saves each registered prototype here
-    static Image *_prototypes[10];
-    static int _nextSlot;
+    public:
+        ConcretePrototype1(int number)
+        {
+            type  = "Type1";
+            value = number;
+        }
+        
+        Prototype* clone()
+        {
+            return new ConcretePrototype1(*this);
+        }
 };
 
-Image *Image::_prototypes[];
-int Image::_nextSlot;
-
-// Client calls this public static member function when it needs an instance
-// of an Image subclass
-Image *Image::findAndClone(imageType type)
+class ConcretePrototype2 : public Prototype
 {
-  for (int i = 0; i < _nextSlot; i++)
-    if (_prototypes[i]->returnType() == type)
-      return _prototypes[i]->clone();
-  return NULL;
-}
+    public:
+        ConcretePrototype2(int number)
+        {
+            type  = "Type2";
+            value = number;
+        }
 
-class LandSatImage: public Image
-{
-  public:
-    imageType returnType()
-    {
-        return LSAT;
-    }
-    void draw()
-    {
-        std::cout << "LandSatImage::draw " << _id << std::endl;
-    }
-    // When clone() is called, call the one-argument ctor with a dummy arg
-    Image *clone()
-    {
-        return new LandSatImage(1);
-    }
-  protected:
-    // This is only called from clone()
-    LandSatImage(int dummy)
-    {
-        _id = _count++;
-    }
-  private:
-    // Mechanism for initializing an Image subclass - this causes the
-    // default ctor to be called, which registers the subclass's prototype
-    static LandSatImage _landSatImage;
-    // This is only called when the private static data member is initiated
-    LandSatImage()
-    {
-        addPrototype(this);
-    }
-    // Nominal "state" per instance mechanism
-    int _id;
-    static int _count;
+        Prototype* clone()
+        {
+            return new ConcretePrototype2(*this);
+        }
 };
 
-// Register the subclass's prototype
-LandSatImage LandSatImage::_landSatImage;
-// Initialize the "state" per instance mechanism
-int LandSatImage::_count = 1;
-
-class SpotImage: public Image
+/* Factory that manages prorotype instances and produces their clones. */
+class ObjectFactory
 {
-  public:
-    imageType returnType()
-    {
-        return SPOT;
-    }
-    void draw()
-    {
-        std::cout << "SpotImage::draw " << _id << std::endl;
-    }
-    Image *clone()
-    {
-        return new SpotImage(1);
-    }
-  protected:
-    SpotImage(int dummy)
-    {
-        _id = _count++;
-    }
-  private:
-    SpotImage()
-    {
-        addPrototype(this);
-    }
-    static SpotImage _spotImage;
-    int _id;
-    static int _count;
+    static Prototype* type1value1;
+    static Prototype* type1value2;
+    static Prototype* type2value1;
+    static Prototype* type2value2;
+
+    public:
+        static void  initialize()
+        {
+            type1value1 = new ConcretePrototype1(1);
+            type1value2 = new ConcretePrototype1(2);
+            type2value1 = new ConcretePrototype2(1);
+            type2value2 = new ConcretePrototype2(2);
+        }
+
+        static Prototype* getType1Value1()
+        {
+            return type1value1->clone();
+        }
+
+        static Prototype* getType1Value2()
+        {
+            return type1value2->clone();
+        }
+
+        static Prototype* getType2Value1()
+        {
+            return type2value1->clone();
+        }
+
+        static Prototype* getType2Value2()
+        {
+            return type2value2->clone();
+        }
 };
 
-SpotImage SpotImage::_spotImage;
-int SpotImage::_count = 1;
-
-// Simulated stream of creation requests
-const int NUM_IMAGES = 8;
-imageType input[NUM_IMAGES] =
-{
-  LSAT, LSAT, LSAT, SPOT, LSAT, SPOT, SPOT, LSAT
-};
+Prototype* ObjectFactory::type1value1 = 0;
+Prototype* ObjectFactory::type1value2 = 0;
+Prototype* ObjectFactory::type2value1 = 0;
+Prototype* ObjectFactory::type2value2 = 0;
 
 int main()
 {
-  Image *images[NUM_IMAGES];
+    ObjectFactory::initialize();
+    Prototype* object;
 
-  // Given an image type, find the right prototype, and return a clone
-  for (int i = 0; i < NUM_IMAGES; i++)
-    images[i] = Image::findAndClone(input[i]);
+    /* All the object were created by cloning the prototypes. */
+    object = ObjectFactory::getType1Value1();
+    std::cout << object->getType() << ": " << object->getValue() << std::endl;
 
-  // Demonstrate that correct image objects have been cloned
-  for (int i = 0; i < NUM_IMAGES; i++)
-    images[i]->draw();
+    object = ObjectFactory::getType1Value2();
+    std::cout << object->getType() << ": " << object->getValue() << std::endl;
 
-  // Free the dynamic memory
-  for (int i = 0; i < NUM_IMAGES; i++)
-    delete images[i];
+    object = ObjectFactory::getType2Value1();
+    std::cout << object->getType() << ": " << object->getValue() << std::endl;
+
+    object = ObjectFactory::getType2Value2();
+    std::cout << object->getType() << ": " << object->getValue() << std::endl;
+
+
+    return 0;
 }
